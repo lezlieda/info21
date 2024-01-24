@@ -14,3 +14,9 @@ CPP6_3DViewer_v2.2,CPP5_3DViewer_v2.1,600
 CPP7_MLP,CPP6_3DViewer_v2.2,600
 CPP8_PhotoLab_v1.0,CPP7_MLP,350
 CPP9_MonitoringSystem,CPP8_PhotoLab_v1.0,500
+DO1_Linux,C3_s21_string+,200
+DO2_LinuxNetwork,DO1_Linux,350
+DO3_LinuxMonitoring_v1.0,DO2_LinuxNetwork,350
+DO4_LinuxMonitoring_v2.0,DO3_LinuxMonitoring_v1.0,350
+DO5_SimpleDocker,DO4_LinuxMonitoring_v2.0,200
+DO6_CICD,DO5_SimpleDocker,200

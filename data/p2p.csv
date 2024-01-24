@@ -1,0 +1,12 @@
+1,1,Opping,Start,19:23:02
+2,1,Opping,Success,19:41:14
+3,2,Bredual,Start,20:37:02
+4,2,Bredual,Success,21:00:54
+5,3,Adocarded,Start,18:52:01
+6,3,Adocarded,Failure,19:11:36
+7,4,Opping,Start,22:05:37
+8,4,Opping,Success,22:07:11
+9,5,Bredual,Start,21:10:09
+10,6,Troducity,Start,21:24:20
+11,5,Bredual,Success,21:55:24
+12,6,Troducity,Success,21:56:11

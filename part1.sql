@@ -1,21 +1,19 @@
 CREATE DATABASE info21;
-
----------------------------------------
+----- drop tables ----------------------------------
 DROP TABLE peers CASCADE;
 DROP TABLE tasks CASCADE;
 DROP TYPE check_status  CASCADE;
 DROP TABLE p2p CASCADE;
 DROP TABLE verter CASCADE;
 DROP TABLE checks CASCADE;
-DROP TABLE transfered_points CASCADE;
-DROP TABLE friends CASCADE;
+DROP TABLE transferred_points CASCADE;
+DROP TABLE recommendations CASCADE;
 DROP TABLE xp CASCADE;
 DROP TABLE time_tracking CASCADE;
-----------------------------------------
-
+----- tables creation ---------------------------------
 CREATE TABLE peers (
     nickname VARCHAR PRIMARY KEY,
-    birthday DATE
+    birthday DATE NOT NULL
 );
 
 CREATE TABLE tasks (
@@ -26,60 +24,63 @@ CREATE TABLE tasks (
 
 CREATE TYPE check_status AS ENUM ('Start', 'Success', 'Failure');
 
+CREATE TABLE checks (
+    id BIGINT PRIMARY KEY,
+    peer VARCHAR REFERENCES peers,
+    task VARCHAR REFERENCES tasks,
+    date DATE
+);
+
 CREATE TABLE p2p (
     id BIGINT PRIMARY KEY,
-    check_id BIGINT,
-    checking_peer VARCHAR REFERENCES peers(nickname),
+    check_id BIGINT REFERENCES checks,
+    checking_peer VARCHAR REFERENCES peers,
     state check_status,
-    time TIME
+    time TIME NOT NULL
 );
 
 CREATE TABLE verter (
     id BIGINT PRIMARY KEY,
-    check_id BIGINT,
+    check_id BIGINT REFERENCES checks,
     state check_status,
-    time TIME
+    time TIME NOT NULL
 );
 
-CREATE TABLE checks (
+CREATE TABLE transferred_points (
     id BIGINT PRIMARY KEY,
-    peer VARCHAR REFERENCES peers(nickname),
-    task VARCHAR REFERENCES tasks(title),
-    date DATE
-);
-
-ALTER TABLE p2p
-ADD CONSTRAINT fk_p2p_check_id FOREIGN KEY (check_id) REFERENCES checks(id);
-
-ALTER TABLE verter
-ADD CONSTRAINT fk_verter_check_id FOREIGN KEY (check_id) REFERENCES checks(id);
-
-CREATE TABLE transfered_points (
-    id BIGINT PRIMARY KEY,
-    checking_peer VARCHAR REFERENCES peers(nickname),
-    checked_peer VARCHAR REFERENCES peers(nickname),
+    checking_peer VARCHAR REFERENCES peers,
+    checked_peer VARCHAR REFERENCES peers,
     points_amount INTEGER
-);
+); -- checking_peer > 0 > checked_peer
 
 CREATE TABLE friends (
     id BIGINT PRIMARY KEY,
-    peer VARCHAR REFERENCES peers(nickname),
-    recommended_peer VARCHAR REFERENCES peers(nickname)
+    peer1 VARCHAR REFERENCES peers,
+    peer2 VARCHAR REFERENCES peers
 );
 
+CREATE TABLE recommendations (
+    id BIGINT PRIMARY KEY,
+    peer VARCHAR REFERENCES peers,
+    recommended_peer VARCHAR REFERENCES peers
+);
+
+--------------------------------------------------------------------------------
 CREATE TABLE xp (
     id BIGINT PRIMARY KEY,
-    check_id BIGINT REFERENCES checks(id),
+    check_id BIGINT REFERENCES checks,
     xp_amount INTEGER
 );
 
 CREATE TABLE time_tracking (
     id BIGINT PRIMARY KEY,
-    peer VARCHAR REFERENCES peers(nickname),
+    peer VARCHAR REFERENCES peers,
     date DATE,
     time TIME,
     state INTEGER CHECK (state IN (1, 2))
 );
+
+----------------- data import / export ------------------------------------
 
 CREATE OR REPLACE PROCEDURE import_data(t_name VARCHAR, f_path VARCHAR, dlmtr VARCHAR)
 LANGUAGE PLPGSQL AS $$
@@ -88,21 +89,48 @@ EXECUTE (SELECT FORMAT('COPY %s FROM ''%s'' %s%s ''%s'' NULL ''null'' CSV;', t_n
 END;
 $$;
 
--- importing all the tables
+------------ importing all the tables --------------------------------------------------------
 CALL import_data('peers', 'C:\Users\user\s21\core\SQL\s21_info21\data\peers.csv', ',');
 CALL import_data('tasks', 'C:\Users\user\s21\core\SQL\s21_info21\data\tasks.csv', ',');
+CALL import_data('checks', 'C:\Users\user\s21\core\SQL\s21_info21\data\checks.csv', ',');
+CALL import_data('p2p', 'C:\Users\user\s21\core\SQL\s21_info21\data\p2p.csv', ',');
+CALL import_data('verter', 'C:\Users\user\s21\core\SQL\s21_info21\data\verter.csv', ',');
+CALL import_data('transferred_points', 'C:\Users\user\s21\core\SQL\s21_info21\data\transferred_points.csv', ',');
+CALL import_data('friends', 'C:\Users\user\s21\core\SQL\s21_info21\data\friends.csv', ',');
+CALL import_data('recommendations', 'C:\Users\user\s21\core\SQL\s21_info21\data\recommendations.csv', ',');
+
+------------ tables output -------------------------------------------------
+SELECT * FROM peers;
+SELECT * FROM tasks;
+SELECT * FROM checks;
+SELECT * FROM p2p;
+SELECT * FROM verter;
+SELECT * FROM transferred_points;
+SELECT * FROM friends;
+SELECT * FROM recommendations;
 
 
 
+-- tests-----------------------------------------------------------------------------
 
+SET DateStyle to 'DMY';
+SELECT '19:23:02'::TIME;
+
+show datestyle;
+
+SELECT now()::INTERVAL; 
+
+SELECT now()::TIME WITH TIME ZONE;
 
 SELECT FORMAT('COPY %s FROM ''%s'' %s%s ''%s'' CSV WITH NULL AS ''null'';', 't_name', 'f_path', 'DELI', 'MITER' , 'dlmtr');
 
 DROP PROCEDURE import_data;
 
-SELECT * FROM transfered_points;
+SELECT * FROM peers;
+SELECT * FROM tasks;
+SELECT * FROM checks;
 
-TRUNCATE TABLE transfered_points CASCADE;
+TRUNCATE TABLE checks CASCADE;
 
 
 SELECT to_char(now(), 'DD.MM.YY');
