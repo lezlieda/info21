@@ -1,0 +1,16 @@
+C2_SimpleBashUtils,null,350
+C3_s21_string+,C2_SimpleBashUtils,600
+C4_s21_math,C3_s21_string+,500
+C5_s21_decimal,C4_s21_math,800
+C6_s21_matrix,C5_s21_decimal,250
+C7_SmartCalc_v1.0,C6_s21_matrix,800
+C8_3DViewer_v1.0,C7_SmartCalc_v1.0,900
+CPP1_s21_matrix+,C8_3DViewer_v1.0,350
+CPP2_s21_containers,CPP1_s21_matrix+,800
+CPP3_SmartCalc_v2.0,CPP2_s21_containers,800
+CPP4_3DViewer_v2.0,CPP3_SmartCalc_v2.0,800
+CPP5_3DViewer_v2.1,CPP4_3DViewer_v2.0,600
+CPP6_3DViewer_v2.2,CPP5_3DViewer_v2.1,600
+CPP7_MLP,CPP6_3DViewer_v2.2,600
+CPP8_PhotoLab_v1.0,CPP7_MLP,350
+CPP9_MonitoringSystem,CPP8_PhotoLab_v1.0,500

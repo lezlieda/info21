@@ -81,29 +81,28 @@ CREATE TABLE time_tracking (
     state INTEGER CHECK (state IN (1, 2))
 );
 
-CREATE OR REPLACE PROCEDURE import_data(t_name VARCHAR, f_path VARCHAR)
-LANGUAGE PLPGSQL AS $$
-BEGIN
-EXECUTE 'COPY ' || t_name || ' FROM ''' || f_path || ''' CSV;';
-END;
-$$;
-
 CREATE OR REPLACE PROCEDURE import_data(t_name VARCHAR, f_path VARCHAR, dlmtr VARCHAR)
 LANGUAGE PLPGSQL AS $$
 BEGIN
-EXECUTE (SELECT FORMAT('COPY %s FROM ''%s'' %s%s ''%s'' CSV;', t_name, f_path, 'DELI', 'MITER' , dlmtr));
+EXECUTE (SELECT FORMAT('COPY %s FROM ''%s'' %s%s ''%s'' NULL ''null'' CSV;', t_name, f_path, 'DELI', 'MITER' , dlmtr));
 END;
 $$;
 
-
-SELECT FORMAT('COPY %s FROM ''%s'' %s%s ''%s'' CSV;', 't_name', 'C:\Users\user\s21\core\SQL\s21_info21\data\peers.csv', 'DELI', 'MITER' ,',');
-
+-- importing all the tables
 CALL import_data('peers', 'C:\Users\user\s21\core\SQL\s21_info21\data\peers.csv', ',');
+CALL import_data('tasks', 'C:\Users\user\s21\core\SQL\s21_info21\data\tasks.csv', ',');
 
+
+
+
+
+SELECT FORMAT('COPY %s FROM ''%s'' %s%s ''%s'' CSV WITH NULL AS ''null'';', 't_name', 'f_path', 'DELI', 'MITER' , 'dlmtr');
 
 DROP PROCEDURE import_data;
 
-SELECT * FROM peers;
+SELECT * FROM transfered_points;
 
-TRUNCATE TABLE peers CASCADE;
+TRUNCATE TABLE transfered_points CASCADE;
 
+
+SELECT to_char(now(), 'DD.MM.YY');
