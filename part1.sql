@@ -97,7 +97,7 @@ EXECUTE (SELECT FORMAT('COPY %s TO ''%s'' %s%s ''%s'' NULL ''null'' CSV;', t_nam
 END;
 $$;
 
------------- importing all the tables --------------------------------------------------------
+------------ importing from CSV files the tables Windows --------------------------------------------------------
 CALL import_data('peers', 'C:\Users\user\s21\core\SQL\s21_info21\data\peers.csv', ',');
 CALL import_data('tasks', 'C:\Users\user\s21\core\SQL\s21_info21\data\tasks.csv', ',');
 CALL import_data('checks', 'C:\Users\user\s21\core\SQL\s21_info21\data\checks.csv', ',');
@@ -108,6 +108,29 @@ CALL import_data('friends', 'C:\Users\user\s21\core\SQL\s21_info21\data\friends.
 CALL import_data('recommendations', 'C:\Users\user\s21\core\SQL\s21_info21\data\recommendations.csv', ',');
 CALL import_data('xp', 'C:\Users\user\s21\core\SQL\s21_info21\data\xp.csv', ',');
 CALL import_data('time_tracking', 'C:\Users\user\s21\core\SQL\s21_info21\data\time_tracking.csv', ',');
+
+
+CALL import_data('peers', '/Users/lezlieda/projects/info21/data/peers.csv', ',');
+CALL import_data('tasks', '/Users/lezlieda/projects/info21/data/tasks.csv', ',');
+CALL import_data('checks', '/Users/lezlieda/projects/info21/data/checks.csv', ',');
+CALL import_data('p2p', '/Users/lezlieda/projects/info21/data/p2p.csv', ',');
+CALL import_data('verter', '/Users/lezlieda/projects/info21/data/verter.csv', ',');
+CALL import_data('friends', '/Users/lezlieda/projects/info21/data/friends.csv', ',');
+CALL import_data('recommendations', '/Users/lezlieda/projects/info21/data/recommendations.csv', ',');
+CALL import_data('xp', '/Users/lezlieda/projects/info21/data/xp.csv', ',');
+CALL import_data('time_tracking', '/Users/lezlieda/projects/info21/data/time_tracking.csv', ',');
+
+------- fill transfered_points table --------------------
+CREATE SEQUENCE seq_trans_points START 1;
+ALTER TABLE transferred_points
+ALTER COLUMN id SET DEFAULT nextval ('seq_trans_points');
+
+INSERT INTO transferred_points(checking_peer, checked_peer, points_amount)
+SELECT p1.nickname, p2.nickname, 0
+            FROM peers p1
+            CROSS JOIN peers p2
+            WHERE p1.nickname != p2.nickname;
+
 
 ------------ tables output -------------------------------------------------
 SELECT * FROM peers;
@@ -122,6 +145,7 @@ SELECT * FROM xp;
 SELECT * FROM time_tracking;
 
 ---------------------------------------------
+
 
 SELECT MAX(id) + 1 FROM checks;
 

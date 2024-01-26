@@ -30,8 +30,7 @@ END;
 $$;
 
 CREATE OR REPLACE PROCEDURE
-add_verter_check(p_peer VARCHAR, p_task VARCHAR, p_status check_status, p_time TIME)
-LANGUAGE PLPGSQL AS $$
+add_verter_check(p_peer VARCHAR, p_task VARCHAR, p_status check_status, p_time TIME) AS $$
 BEGIN
     IF (p_status = 'Start') THEN
         INSERT INTO verter VALUES((SELECT MAX(id) + 1 FROM verter),
@@ -49,11 +48,18 @@ BEGIN
                                    p_time);
     END IF;
 END;
-$$;
+$$ LANGUAGE PLPGSQL ;
 
+CREATE OR REPLACE TRIGGER
+
+
+
+
+---------- tests -------------------------------------------------------
 SELECT * FROM checks;
 SELECT * FROM p2p;
 SELECT * FROM verter;
+
 CALL add_p2p_check('Pormissina', 'Troducity', 'C2_SimpleBashUtils', 'Start', '15:17:11');
 CALL add_p2p_check('Bredual', 'Anchil', 'C2_SimpleBashUtils', 'Start', '15:19:11');
 CALL add_p2p_check('Bredual', 'Anchil', 'C2_SimpleBashUtils', 'Success', '15:41:08');
