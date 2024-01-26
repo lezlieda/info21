@@ -21,7 +21,7 @@ CREATE TABLE peers (
 CREATE TABLE tasks (
     title VARCHAR PRIMARY KEY,
     parent_task VARCHAR REFERENCES tasks,
-    xp_amount INTEGER NOT NULL
+    max_xp INTEGER NOT NULL
 );
 
 CREATE TYPE check_status AS ENUM ('Start', 'Success', 'Failure');
@@ -121,7 +121,9 @@ CALL import_data('xp', '/Users/lezlieda/projects/info21/data/xp.csv', ',');
 CALL import_data('time_tracking', '/Users/lezlieda/projects/info21/data/time_tracking.csv', ',');
 
 ------- fill transfered_points table --------------------
+DROP SEQUENCE seq_trans_points;
 CREATE SEQUENCE seq_trans_points START 1;
+
 ALTER TABLE transferred_points
 ALTER COLUMN id SET DEFAULT nextval ('seq_trans_points');
 
