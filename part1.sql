@@ -1,4 +1,5 @@
 CREATE DATABASE info21;
+\c info21
 ----- drop tables ----------------------------------
 DROP TABLE peers CASCADE;
 DROP TABLE tasks CASCADE;
@@ -7,6 +8,7 @@ DROP TABLE p2p CASCADE;
 DROP TABLE verter CASCADE;
 DROP TABLE checks CASCADE;
 DROP TABLE transferred_points CASCADE;
+DROP TABLE friends CASCADE;
 DROP TABLE recommendations CASCADE;
 DROP TABLE xp CASCADE;
 DROP TABLE time_tracking CASCADE;
@@ -65,19 +67,18 @@ CREATE TABLE recommendations (
     recommended_peer VARCHAR REFERENCES peers
 );
 
---------------------------------------------------------------------------------
 CREATE TABLE xp (
     id BIGINT PRIMARY KEY,
     check_id BIGINT REFERENCES checks,
-    xp_amount INTEGER
+    xp_amount INTEGER NOT NULL
 );
 
 CREATE TABLE time_tracking (
     id BIGINT PRIMARY KEY,
     peer VARCHAR REFERENCES peers,
-    date DATE,
-    time TIME,
-    state INTEGER CHECK (state IN (1, 2))
+    date DATE NOT NULL,
+    time TIME NOT NULL,
+    state INTEGER NOT NULL CHECK (state IN (1, 2))
 );
 
 ----------------- data import / export ------------------------------------
@@ -86,6 +87,13 @@ CREATE OR REPLACE PROCEDURE import_data(t_name VARCHAR, f_path VARCHAR, dlmtr VA
 LANGUAGE PLPGSQL AS $$
 BEGIN
 EXECUTE (SELECT FORMAT('COPY %s FROM ''%s'' %s%s ''%s'' NULL ''null'' CSV;', t_name, f_path, 'DELI', 'MITER' , dlmtr));
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE export_data(t_name VARCHAR, f_path VARCHAR, dlmtr VARCHAR)
+LANGUAGE PLPGSQL AS $$
+BEGIN
+EXECUTE (SELECT FORMAT('COPY %s TO ''%s'' %s%s ''%s'' NULL ''null'' CSV;', t_name, f_path, 'DELI', 'MITER' , dlmtr));
 END;
 $$;
 
@@ -98,6 +106,8 @@ CALL import_data('verter', 'C:\Users\user\s21\core\SQL\s21_info21\data\verter.cs
 CALL import_data('transferred_points', 'C:\Users\user\s21\core\SQL\s21_info21\data\transferred_points.csv', ',');
 CALL import_data('friends', 'C:\Users\user\s21\core\SQL\s21_info21\data\friends.csv', ',');
 CALL import_data('recommendations', 'C:\Users\user\s21\core\SQL\s21_info21\data\recommendations.csv', ',');
+CALL import_data('xp', 'C:\Users\user\s21\core\SQL\s21_info21\data\xp.csv', ',');
+CALL import_data('time_tracking', 'C:\Users\user\s21\core\SQL\s21_info21\data\time_tracking.csv', ',');
 
 ------------ tables output -------------------------------------------------
 SELECT * FROM peers;
@@ -108,29 +118,5 @@ SELECT * FROM verter;
 SELECT * FROM transferred_points;
 SELECT * FROM friends;
 SELECT * FROM recommendations;
-
-
-
--- tests-----------------------------------------------------------------------------
-
-SET DateStyle to 'DMY';
-SELECT '19:23:02'::TIME;
-
-show datestyle;
-
-SELECT now()::INTERVAL; 
-
-SELECT now()::TIME WITH TIME ZONE;
-
-SELECT FORMAT('COPY %s FROM ''%s'' %s%s ''%s'' CSV WITH NULL AS ''null'';', 't_name', 'f_path', 'DELI', 'MITER' , 'dlmtr');
-
-DROP PROCEDURE import_data;
-
-SELECT * FROM peers;
-SELECT * FROM tasks;
-SELECT * FROM checks;
-
-TRUNCATE TABLE checks CASCADE;
-
-
-SELECT to_char(now(), 'DD.MM.YY');
+SELECT * FROM xp;
+SELECT * FROM time_tracking;
