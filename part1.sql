@@ -120,3 +120,11 @@ SELECT * FROM friends;
 SELECT * FROM recommendations;
 SELECT * FROM xp;
 SELECT * FROM time_tracking;
+
+---------------------------------------------
+
+SELECT MAX(id) + 1 FROM checks;
+
+SELECT now()::DATE;
+
+SELECT MAX(check_id) FROM p2p WHERE state = 'Start' AND checking_peer = 'Bredual';
