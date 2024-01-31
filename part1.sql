@@ -100,26 +100,11 @@ $$;
 ------------ importing from CSV files the tables Windows --------------------------------------------------------
 CALL import_data('peers', 'C:\Users\user\s21\core\SQL\s21_info21\data\peers.csv', ',');
 CALL import_data('tasks', 'C:\Users\user\s21\core\SQL\s21_info21\data\tasks.csv', ',');
-CALL import_data('checks', 'C:\Users\user\s21\core\SQL\s21_info21\data\checks.csv', ',');
-CALL import_data('p2p', 'C:\Users\user\s21\core\SQL\s21_info21\data\p2p.csv', ',');
-CALL import_data('verter', 'C:\Users\user\s21\core\SQL\s21_info21\data\verter.csv', ',');
-CALL import_data('transferred_points', 'C:\Users\user\s21\core\SQL\s21_info21\data\transferred_points.csv', ',');
 CALL import_data('friends', 'C:\Users\user\s21\core\SQL\s21_info21\data\friends.csv', ',');
 CALL import_data('recommendations', 'C:\Users\user\s21\core\SQL\s21_info21\data\recommendations.csv', ',');
-CALL import_data('xp', 'C:\Users\user\s21\core\SQL\s21_info21\data\xp.csv', ',');
 CALL import_data('time_tracking', 'C:\Users\user\s21\core\SQL\s21_info21\data\time_tracking.csv', ',');
-
-
-CALL import_data('peers', '/Users/lezlieda/projects/info21/data/peers.csv', ',');
-CALL import_data('tasks', '/Users/lezlieda/projects/info21/data/tasks.csv', ',');
-CALL import_data('checks', '/Users/lezlieda/projects/info21/data/checks.csv', ',');
-CALL import_data('p2p', '/Users/lezlieda/projects/info21/data/p2p.csv', ',');
-CALL import_data('verter', '/Users/lezlieda/projects/info21/data/verter.csv', ',');
-CALL import_data('friends', '/Users/lezlieda/projects/info21/data/friends.csv', ',');
-CALL import_data('recommendations', '/Users/lezlieda/projects/info21/data/recommendations.csv', ',');
-CALL import_data('xp', '/Users/lezlieda/projects/info21/data/xp.csv', ',');
-CALL import_data('time_tracking', '/Users/lezlieda/projects/info21/data/time_tracking.csv', ',');
-
+CALL import_data('checks', 'C:\Users\user\s21\core\SQL\s21_info21\data\checks.csv', ',');
+------------- fill the other tables --------------------------------------------
 ------- fill transfered_points table --------------------
 DROP SEQUENCE seq_trans_points;
 CREATE SEQUENCE seq_trans_points START 1;
@@ -133,6 +118,27 @@ SELECT p1.nickname, p2.nickname, 0
             CROSS JOIN peers p2
             WHERE p1.nickname != p2.nickname;
 
+----------- add_p2p ---------------------------------
+
+CALL add_p2p_check('Prowels', 'Bredual', 'C2_SimpleBashUtils', 'Start', '12:00:00');
+
+CALL import_data('xp', 'C:\Users\user\s21\core\SQL\s21_info21\data\xp.csv', ',');
+CALL import_data('p2p', 'C:\Users\user\s21\core\SQL\s21_info21\data\p2p.csv', ',');
+CALL import_data('verter', 'C:\Users\user\s21\core\SQL\s21_info21\data\verter.csv', ',');
+CALL import_data('transferred_points', 'C:\Users\user\s21\core\SQL\s21_info21\data\transferred_points.csv', ',');
+
+CALL import_data('peers', '/Users/lezlieda/projects/info21/data/peers.csv', ',');
+CALL import_data('tasks', '/Users/lezlieda/projects/info21/data/tasks.csv', ',');
+CALL import_data('checks', '/Users/lezlieda/projects/info21/data/checks.csv', ',');
+CALL import_data('p2p', '/Users/lezlieda/projects/info21/data/p2p.csv', ',');
+CALL import_data('verter', '/Users/lezlieda/projects/info21/data/verter.csv', ',');
+CALL import_data('friends', '/Users/lezlieda/projects/info21/data/friends.csv', ',');
+CALL import_data('recommendations', '/Users/lezlieda/projects/info21/data/recommendations.csv', ',');
+CALL import_data('xp', '/Users/lezlieda/projects/info21/data/xp.csv', ',');
+CALL import_data('time_tracking', '/Users/lezlieda/projects/info21/data/time_tracking.csv', ',');
+
+
+TRUNCATE TABLE checks;
 
 ------------ tables output -------------------------------------------------
 SELECT * FROM peers;

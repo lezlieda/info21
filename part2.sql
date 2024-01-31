@@ -8,12 +8,12 @@ CREATE OR REPLACE PROCEDURE
 add_p2p_check(p_peer VARCHAR, p_checking_peer VARCHAR, p_task VARCHAR, p_status check_status, p_time TIME) AS $$
 BEGIN
     IF (p_status = 'Start') THEN
-        INSERT INTO checks VALUES((SELECT MAX(id) + 1 FROM checks),
+        INSERT INTO checks VALUES((SELECT COALESCE(MAX(id), 0) + 1 FROM checks),
                                   p_peer,
                                   p_task,
                                   now()::DATE);
-        INSERT INTO p2p VALUES((SELECT MAX(id) + 1 FROM p2p),
-                               (SELECT MAX(id) FROM checks),
+        INSERT INTO p2p VALUES((SELECT COALESCE(MAX(id), 0) + 1 FROM p2p),
+                               (SELECT COALESCE(MAX(id), 1) FROM checks),
                                 p_checking_peer,
                                 p_status,
                                 p_time);
@@ -36,7 +36,7 @@ CREATE OR REPLACE PROCEDURE
 add_verter_check(p_peer VARCHAR, p_task VARCHAR, p_status check_status, p_time TIME) AS $$
 BEGIN
     IF (p_status = 'Start') THEN
-        INSERT INTO verter VALUES((SELECT MAX(id) + 1 FROM verter),
+        INSERT INTO verter VALUES((SELECT COALESCE(MAX(id), 0) + 1 FROM verter),
                                   (SELECT MAX(c.id) FROM checks c
                                    INNER JOIN p2p p ON c.id = p.check_id
                                    WHERE c.peer = p_peer AND c.task = p_task AND p.state = 'Success'),
@@ -55,14 +55,34 @@ $$ LANGUAGE PLPGSQL;
 
 -- 3) Write a trigger: after adding a record with the "start" status to the P2P table,
 --    change the corresponding record in the TransferredPoints table
+CREATE OR REPLACE FUNCTION fnc_transfer_exists(p_checking VARCHAR, p_checked VARCHAR) RETURNS BOOLEAN AS $$
+BEGIN
+    IF EXISTS (SELECT points_amount FROM transferred_points
+    WHERE checking_peer = $1 AND checked_peer = $2)
+    THEN
+        RETURN TRUE;
+    END IF;
+    RETURN FALSE;
+END;
+$$ LANGUAGE PLPGSQL;
+
+
 
 CREATE OR REPLACE FUNCTION fnc_transfer_point() RETURNS trigger AS $trg_transfer_point$
 BEGIN
     IF NEW.State = 'Start' THEN
-        UPDATE transferred_points
-        SET points_amount = points_amount + 1
-        WHERE checking_peer = NEW.checking_peer
-        AND checked_peer = (SELECT peer FROM checks WHERE id = NEW.check_id);
+        IF fnc_transfer_exists(NEW.checking_peer, (SELECT peer FROM checks WHERE id = NEW.check_id)) = TRUE THEN
+            UPDATE transferred_points
+            SET points_amount = points_amount + 1
+            WHERE checking_peer = NEW.checking_peer
+            AND checked_peer = (SELECT peer FROM checks WHERE id = NEW.check_id);
+        ELSE
+            INSERT INTO transferred_points
+            VALUES((SELECT COALESCE(MAX(id), 0) + 1 FROM transferred_points),
+                   NEW.checking_peer,
+                   (SELECT peer FROM checks WHERE id = NEW.check_id),
+                   1);
+        END IF;
     END IF;
     RETURN NULL;
 END;
@@ -102,30 +122,6 @@ FOR EACH ROW EXECUTE FUNCTION fnc_check_xp_insert();
 
 ---------- tests -------------------------------------------------------
 
-INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), 7, 350);
-INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), 8, 1350);
-
-SELECT fnc_is_check_successful(1) ;
-
-SELECT state FROM p2p WHERE check_id = 3 ORDER BY id DESC LIMIT 1;
-
-SELECT c.id, t.max_xp AS max_xp
-FROM checks c
-JOIN tasks t
-ON t.title = c.task;
-
-
-
-SELECT * FROM checks;
-SELECT * FROM p2p;
-SELECT * FROM verter;
-
-SELECT * FROM transferred_points;
-
-SELECT c.peer FROM p2p p JOIN checks c ON p.check_id = c.id;
-
-
-
 CALL add_p2p_check('Pormissina', 'Troducity', 'C2_SimpleBashUtils', 'Start', '15:17:11');
 CALL add_p2p_check('Bredual', 'Anchil', 'C2_SimpleBashUtils', 'Start', '15:19:11');
 CALL add_p2p_check('Bredual', 'Anchil', 'C2_SimpleBashUtils', 'Success', '15:41:08');
@@ -136,10 +132,18 @@ CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Success', '15:42:11');
 CALL add_verter_check('Pormissina', 'C2_SimpleBashUtils', 'Success', '15:42:15');
 
 
-DELETE FROM checks WHERE id = 7;
+INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), 7, 350);
+INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), 8, 1350);
+INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), 8, 350);
 
-SELECT MAX(c.id)
-FROM checks c
-INNER JOIN verter v
-ON c.id = v.check_id
-WHERE c.peer = 'Pormissina' AND c.task = 'C2_SimpleBashUtils' AND v.state = 'Start';
+
+
+SELECT * FROM checks;
+SELECT * FROM p2p;
+SELECT * FROM verter;
+
+SELECT * FROM xp;
+
+SELECT * FROM transferred_points;
+
+SELECT c.peer FROM p2p p JOIN checks c ON p.check_id = c.id;
