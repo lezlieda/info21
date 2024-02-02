@@ -46,12 +46,16 @@ BEGIN
         INSERT INTO verter VALUES((SELECT MAX(id) + 1 FROM verter),
                                   (SELECT MAX(c.id) FROM checks c
                                    INNER JOIN verter v ON c.id = v.check_id
-                                   WHERE c.peer = p_peer AND c.task = p_task HAVING COUNT(v.state) = 1),
+                                   WHERE c.peer = p_peer AND c.task = p_task AND v.state = 'Start'),
                                    p_status,
                                    p_time);
     END IF;
 END;
 $$ LANGUAGE PLPGSQL;
+
+-- SELECT MAX(c.id) FROM checks c
+-- INNER JOIN verter v ON c.id = v.check_id
+-- WHERE c.peer = 'Bredual' AND c.task = 'C2_SimpleBashUtils' AND v.state = 'Start';
 
 -- 3) Write a trigger: after adding a record with the "start" status to the P2P table,
 --    change the corresponding record in the TransferredPoints table
@@ -65,8 +69,6 @@ BEGIN
     RETURN FALSE;
 END;
 $$ LANGUAGE PLPGSQL;
-
-
 
 CREATE OR REPLACE FUNCTION fnc_transfer_point() RETURNS trigger AS $trg_transfer_point$
 BEGIN
@@ -106,10 +108,15 @@ BEGIN
 END;
 $$ LANGUAGE PLPGSQL;
 
+-- SELECT fnc_is_check_successful(10);
+-- SELECT max_xp FROM checks c 
+-- JOIN tasks t ON t.title = c.task
+-- WHERE c.id = 10;
+
 CREATE OR REPLACE FUNCTION fnc_check_xp_insert() RETURNS trigger AS $trg_check_xp_insert$
 BEGIN
-    IF NEW.xp_amount IN (0, (SELECT max_xp FROM checks c JOIN tasks t ON t.title = c.task WHERE c.id = NEW.id)) AND
-    fnc_is_check_successful(NEW.check_id) = TRUE THEN
+    IF NEW.xp_amount BETWEEN 0 AND (SELECT max_xp FROM checks c JOIN tasks t ON t.title = c.task WHERE c.id = NEW.check_id)
+    AND fnc_is_check_successful(NEW.check_id) = TRUE THEN
         RETURN NEW;
     END IF;
     RETURN NULL;
@@ -121,21 +128,51 @@ BEFORE INSERT ON xp
 FOR EACH ROW EXECUTE FUNCTION fnc_check_xp_insert();
 
 ---------- tests -------------------------------------------------------
+-- 1 check
+CALL add_p2p_check('Pormissina', 'Troducity', 'C2_SimpleBashUtils', 'Start', '12:17:11');
+CALL add_p2p_check('Pormissina', 'Troducity', 'C2_SimpleBashUtils', 'Success', '12:41:12');
+CALL add_verter_check('Pormissina', 'C2_SimpleBashUtils', 'Start', '12:41:15');
+CALL add_verter_check('Pormissina', 'C2_SimpleBashUtils', 'Success', '12:42:15');
+INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 350);
+-- 2 check
+CALL add_p2p_check('Bredual', 'Anchil', 'C2_SimpleBashUtils', 'Start', '12:19:11');
+CALL add_p2p_check('Bredual', 'Anchil', 'C2_SimpleBashUtils', 'Success', '12:41:08');
+CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Start', '12:41:11');
+CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Failure', '12:42:11');
+-- 3 check
+CALL add_p2p_check('Bredual', 'Pormissina', 'C2_SimpleBashUtils', 'Start', '15:34:51');
+CALL add_p2p_check('Bredual', 'Pormissina', 'C2_SimpleBashUtils', 'Success', '16:19:02');
+CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Start', '16:19:03');
+CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Failure', '16:20:00');
+-- 4 check
+CALL add_p2p_check('Bredual', 'Prowels', 'C2_SimpleBashUtils', 'Start', '22:20:01');
+CALL add_p2p_check('Bredual', 'Prowels', 'C2_SimpleBashUtils', 'Success', '22:29:36');
+CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Start', '22:29:37');
+CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Success', '22:30:37');
 
-CALL add_p2p_check('Pormissina', 'Troducity', 'C2_SimpleBashUtils', 'Start', '15:17:11');
-CALL add_p2p_check('Bredual', 'Anchil', 'C2_SimpleBashUtils', 'Start', '15:19:11');
-CALL add_p2p_check('Bredual', 'Anchil', 'C2_SimpleBashUtils', 'Success', '15:41:08');
-CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Start', '15:41:11');
-CALL add_p2p_check('Pormissina', 'Troducity', 'C2_SimpleBashUtils', 'Success', '15:41:12');
-CALL add_verter_check('Pormissina', 'C2_SimpleBashUtils', 'Start', '15:41:15');
-CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Success', '15:42:11');
-CALL add_verter_check('Pormissina', 'C2_SimpleBashUtils', 'Success', '15:42:15');
+
+INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 1350); -- 1350 > 350
+INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), -350); -- -350 < 0
+INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 265);
 
 
-INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), 7, 350);
-INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), 8, 1350);
-INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), 8, 350);
+SELECT * FROM checks;
+SELECT * FROM p2p;
+SELECT * FROM verter;
+SELECT * FROM xp;
 
+
+
+
+
+
+CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Start', '12:41:11');
+CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Success', '12:42:11');
+
+
+CALL add_verter_check('Bredual', 'C3_s21_string+', 'Start', '14:14:41');
+CALL add_verter_check('Bredual', 'C3_s21_string+', 'Success', '14:14:41');
+INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), 9, 300);
 
 
 SELECT * FROM checks;
@@ -145,5 +182,3 @@ SELECT * FROM verter;
 SELECT * FROM xp;
 
 SELECT * FROM transferred_points;
-
-SELECT c.peer FROM p2p p JOIN checks c ON p.check_id = c.id;
