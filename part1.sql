@@ -97,6 +97,17 @@ BEGIN
 EXECUTE (SELECT FORMAT('COPY %s TO ''%s'' %s%s ''%s'' NULL ''null'' CSV;', t_name, f_path, 'DELI', 'MITER' , dlmtr));
 END;
 $$;
+----------------
+CALL import_data('peers', '/Users/lezlieda/projects/info21/data/peers.csv', ',');
+CALL import_data('tasks', '/Users/lezlieda/projects/info21/data/tasks.csv', ',');
+CALL import_data('friends', '/Users/lezlieda/projects/info21/data/friends.csv', ',');
+CALL import_data('recommendations', '/Users/lezlieda/projects/info21/data/recommendations.csv', ',');
+CALL import_data('time_tracking', '/Users/lezlieda/projects/info21/data/time_tracking.csv', ',');
+CALL import_data('checks', '/Users/lezlieda/projects/info21/data/checks.csv', ',');
+CALL import_data('xp', '/Users/lezlieda/projects/info21/data/xp.csv', ',');
+CALL import_data('p2p', '/Users/lezlieda/projects/info21/data/p2p.csv', ',');
+CALL import_data('verter', '/Users/lezlieda/projects/info21/data/verter.csv', ',');
+CALL import_data('transferred_points', '/Users/lezlieda/projects/info21/data/transferred_points.csv', ',');
 
 ------------ importing from CSV files the tables Windows --------------------------------------------------------
 CALL import_data('peers', 'C:\Users\user\s21\core\SQL\s21_info21\data\peers.csv', ',');
