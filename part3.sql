@@ -51,9 +51,23 @@ BEGIN
 END;
 $$ LANGUAGE PLPGSQL;
 
+CREATE OR REPLACE FUNCTION fnc_peers_not_left_alt(p_date DATE)
+RETURNS table(peer VARCHAR) AS $$
+BEGIN
+    RETURN QUERY
+    WITH t1 AS (SELECT tp.peer, COUNT(tp.peer) AS enters FROM time_tracking tp
+                WHERE date = '2024-01-17' AND state = 1
+                GROUP BY 1)
+    SELECT t1.peer FROM t1 WHERE enters = 1;
+END;
+$$ LANGUAGE PLPGSQL;
+
+
 SELECT * FROM time_tracking;
 
 SELECT * FROM fnc_peers_not_left('2024-01-17');
+
+SELECT * FROM fnc_peers_not_left_alt('2024-01-17');
 
 -- 4) Calculate the change in the number of peer points of each peer using the TransferredPoints table
 CREATE OR REPLACE PROCEDURE prc_peerpoints(INOUT curs1 refcursor) AS $$
@@ -107,3 +121,18 @@ CALL prc_peerpoints_alt('bb');
 FETCH ALL FROM bb;
 END;
 
+-- 6) Find the most frequently checked task for each day
+SELECT * FROM checks;
+
+SELECT date AS day, task, COUNT(task) AS cnt
+FROM checks
+GROUP BY 1, 2
+ORDER BY 1;
+
+WITH t1 AS (SELECT date AS day, task, COUNT(task) AS cnt
+            FROM checks
+            GROUP BY 1, 2
+            ORDER BY 1)
+SELECT day, task
+FROM t1
+GROUP BY 1

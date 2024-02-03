@@ -140,11 +140,19 @@ CALL add_p2p_check('Bredual', 'Prowels', 'C2_SimpleBashUtils', 'Start', '22:20:0
 CALL add_p2p_check('Bredual', 'Prowels', 'C2_SimpleBashUtils', 'Success', '22:29:36');
 CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Start', '22:29:37');
 CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Success', '22:30:37');
-
-
 INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 1350); -- 1350 > 350
 INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), -350); -- -350 < 0
 INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 265);
+
+-- 5 check
+CALL add_p2p_check('Bredual', 'Anchil', 'C3_s21_string+', 'Start', '22:45:00');
+CALL add_p2p_check('Bredual', 'Anchil', 'C3_s21_string+', 'Success', '23:24:31');
+CALL add_verter_check('Bredual', 'C3_s21_string+', 'Start', '23:24:32');
+CALL add_verter_check('Bredual', 'C3_s21_string+', 'Success', '23:25:32');
+
+INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 555);
+
+
 
 
 SELECT * FROM checks;

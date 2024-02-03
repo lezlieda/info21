@@ -97,7 +97,7 @@ BEGIN
 EXECUTE (SELECT FORMAT('COPY %s TO ''%s'' %s%s ''%s'' NULL ''null'' CSV;', t_name, f_path, 'DELI', 'MITER' , dlmtr));
 END;
 $$;
-----------------
+------------ importing from CSV files the tables Campus --------------------------------------------------------
 CALL import_data('peers', '/Users/lezlieda/projects/info21/data/peers.csv', ',');
 CALL import_data('tasks', '/Users/lezlieda/projects/info21/data/tasks.csv', ',');
 CALL import_data('friends', '/Users/lezlieda/projects/info21/data/friends.csv', ',');
