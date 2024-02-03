@@ -5,7 +5,7 @@
 --    If the status is "start", specify the record just added as a check, otherwise specify the check with the
 --    unfinished P2P step.
 CREATE OR REPLACE PROCEDURE
-add_p2p_check(p_peer VARCHAR, p_checking_peer VARCHAR, p_task VARCHAR, p_status check_status, p_time TIME) AS $$
+prc_add_p2p_check(p_peer VARCHAR, p_checking_peer VARCHAR, p_task VARCHAR, p_status check_status, p_time TIME) AS $$
 BEGIN
     IF (p_status = 'Start') THEN
         INSERT INTO checks VALUES((SELECT COALESCE(MAX(id), 0) + 1 FROM checks),
@@ -33,7 +33,7 @@ $$ LANGUAGE PLPGSQL;
 --    Add a record to the Verter table (as a check specify the check of the corresponding task
 --    with the latest (by time) successful P2P step)
 CREATE OR REPLACE PROCEDURE
-add_verter_check(p_peer VARCHAR, p_task VARCHAR, p_status check_status, p_time TIME) AS $$
+prc_add_verter_check(p_peer VARCHAR, p_task VARCHAR, p_status check_status, p_time TIME) AS $$
 BEGIN
     IF (p_status = 'Start') THEN
         INSERT INTO verter VALUES((SELECT COALESCE(MAX(id), 0) + 1 FROM verter),
@@ -120,37 +120,43 @@ FOR EACH ROW EXECUTE FUNCTION fnc_check_xp_insert();
 
 ---------- tests -------------------------------------------------------
 -- 1 check
-CALL add_p2p_check('Pormissina', 'Troducity', 'C2_SimpleBashUtils', 'Start', '12:17:11');
-CALL add_p2p_check('Pormissina', 'Troducity', 'C2_SimpleBashUtils', 'Success', '12:41:12');
-CALL add_verter_check('Pormissina', 'C2_SimpleBashUtils', 'Start', '12:41:15');
-CALL add_verter_check('Pormissina', 'C2_SimpleBashUtils', 'Success', '12:42:15');
+CALL prc_add_p2p_check('Pormissina', 'Troducity', 'C2_SimpleBashUtils', 'Start', '12:17:11');
+CALL prc_add_p2p_check('Pormissina', 'Troducity', 'C2_SimpleBashUtils', 'Success', '12:41:12');
+CALL prc_add_verter_check('Pormissina', 'C2_SimpleBashUtils', 'Start', '12:41:15');
+CALL prc_add_verter_check('Pormissina', 'C2_SimpleBashUtils', 'Success', '12:42:15');
 INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 350);
 -- 2 check
-CALL add_p2p_check('Bredual', 'Anchil', 'C2_SimpleBashUtils', 'Start', '12:19:11');
-CALL add_p2p_check('Bredual', 'Anchil', 'C2_SimpleBashUtils', 'Success', '12:41:08');
-CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Start', '12:41:11');
-CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Failure', '12:42:11');
+CALL prc_add_p2p_check('Bredual', 'Anchil', 'C2_SimpleBashUtils', 'Start', '12:19:11');
+CALL prc_add_p2p_check('Bredual', 'Anchil', 'C2_SimpleBashUtils', 'Success', '12:41:08');
+CALL prc_add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Start', '12:41:11');
+CALL prc_add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Failure', '12:42:11');
 -- 3 check
-CALL add_p2p_check('Bredual', 'Pormissina', 'C2_SimpleBashUtils', 'Start', '15:34:51');
-CALL add_p2p_check('Bredual', 'Pormissina', 'C2_SimpleBashUtils', 'Success', '16:19:02');
-CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Start', '16:19:03');
-CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Failure', '16:20:00');
+CALL prc_add_p2p_check('Bredual', 'Pormissina', 'C2_SimpleBashUtils', 'Start', '15:34:51');
+CALL prc_add_p2p_check('Bredual', 'Pormissina', 'C2_SimpleBashUtils', 'Success', '16:19:02');
+CALL prc_add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Start', '16:19:03');
+CALL prc_add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Failure', '16:20:00');
 -- 4 check
-CALL add_p2p_check('Bredual', 'Prowels', 'C2_SimpleBashUtils', 'Start', '22:20:01');
-CALL add_p2p_check('Bredual', 'Prowels', 'C2_SimpleBashUtils', 'Success', '22:29:36');
-CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Start', '22:29:37');
-CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Success', '22:30:37');
+CALL prc_add_p2p_check('Bredual', 'Prowels', 'C2_SimpleBashUtils', 'Start', '22:20:01');
+CALL prc_add_p2p_check('Bredual', 'Prowels', 'C2_SimpleBashUtils', 'Success', '22:29:36');
+CALL prc_add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Start', '22:29:37');
+CALL prc_add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Success', '22:30:37');
 INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 1350); -- 1350 > 350
 INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), -350); -- -350 < 0
 INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 265);
 
 -- 5 check
-CALL add_p2p_check('Bredual', 'Anchil', 'C3_s21_string+', 'Start', '22:45:00');
-CALL add_p2p_check('Bredual', 'Anchil', 'C3_s21_string+', 'Success', '23:24:31');
-CALL add_verter_check('Bredual', 'C3_s21_string+', 'Start', '23:24:32');
-CALL add_verter_check('Bredual', 'C3_s21_string+', 'Success', '23:25:32');
+CALL prc_add_p2p_check('Bredual', 'Anchil', 'C3_s21_string+', 'Start', '22:45:00');
+CALL prc_add_p2p_check('Bredual', 'Anchil', 'C3_s21_string+', 'Success', '23:24:31');
+CALL prc_add_verter_check('Bredual', 'C3_s21_string+', 'Start', '23:24:32');
+CALL prc_add_verter_check('Bredual', 'C3_s21_string+', 'Success', '23:25:32');
 
 INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 555);
+
+-- 6 check
+CALL prc_add_p2p_check('Bredual', 'Cadishow', 'CPP1_s21_matrix+', 'Start', '23:30:57');
+CALL prc_add_p2p_check('Bredual', 'Cadishow', 'CPP1_s21_matrix+', 'Success', '23:35:40');
+INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 300);
+
 
 
 

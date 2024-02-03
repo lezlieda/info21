@@ -91,14 +91,14 @@ $$ LANGUAGE PLPGSQL;
 
 SELECT * FROM transferred_points;
 BEGIN;
-CALL prc_peerpoints('task_4');
-FETCH ALL FROM task_4;
+CALL prc_peerpoints('ex_4');
+FETCH ALL FROM ex_4;
 END;
 
 -- 5) Calculate the change in the number of peer points of each peer using the table returned
 --    by the first function from Part 3
 
-CREATE OR REPLACE PROCEDURE prc_peerpoints_alt(INOUT curs refcursor) AS $$
+CREATE OR REPLACE PROCEDURE prc_peerpoints_alt(INOUT curs refcursor = 'ex_5') AS $$
 BEGIN
     OPEN curs FOR
         WITH t1 AS (SELECT peer1, SUM(-point_amount) AS s1
@@ -117,12 +117,12 @@ END;
 $$ LANGUAGE PLPGSQL;
 
 BEGIN;
-CALL prc_peerpoints_alt('task_5');
-FETCH ALL FROM task_5;
+CALL prc_peerpoints_alt();
+FETCH ALL FROM ex_5;
 END;
 
 -- 6) Find the most frequently checked task for each day
-CREATE OR REPLACE PROCEDURE prc_frequent_tasks(INOUT curs refcursor) AS $$
+CREATE OR REPLACE PROCEDURE prc_frequent_tasks(INOUT curs refcursor = 'ex_6') AS $$
 BEGIN
     OPEN curs FOR
         WITH t1 AS (SELECT date AS d, task AS t, COUNT(task) AS cnt
@@ -140,7 +140,79 @@ END;
 $$ LANGUAGE PLPGSQL;
 
 BEGIN;
-CALL prc_frequent_tasks('task_6');
-FETCH ALL FROM task_6;
+CALL prc_frequent_tasks();
+FETCH ALL FROM ex_6;
 END;
+
+-- 7) Find all peers who have completed the whole given block of tasks and the completion date of the last task
+--    Procedure parameters: name of the block, for example “CPP”.
+--    The result is sorted by the date of completion.
+--    Output format: peer's name, date of completion of the block (i.e. the last completed task from that block)
+CREATE OR REPLACE PROCEDURE prc_peers_completed_block(IN p_block VARCHAR, INOUT curs REFCURSOR = 'ex_7') AS $$
+BEGIN
+    OPEN curs FOR
+    WITH t1 AS (SELECT title
+            FROM tasks
+            WHERE title SIMILAR TO p_block || '[0-9]%'
+            ORDER BY 1 DESC
+            LIMIT 1),
+     t2 AS (SELECT c.peer, c.task, c.date FROM checks c
+            JOIN xp
+            ON c.id = xp.check_id)
+    SELECT t2.peer, MIN(t2.date) AS day
+    FROM t2
+    JOIN t1
+    ON t2.task = t1.title
+    GROUP BY t2.peer
+    ORDER BY 2 DESC;
+END;
+$$ LANGUAGE PLPGSQL;
+
+BEGIN;
+CALL prc_peers_completed_block('C');
+FETCH ALL FROM ex_7;
+END;
+
+
+-- 8) Determine which peer each student should go to for a check.
+
+-- ????????????????????????????????????????????????????????????????????????????????????
+
+
+-- 9) Determine the percentage of peers who:
+--    - Started only block 1
+--    - Started only block 2
+--    - Started both
+--    - Have not started any of them
+-- A peer is considered to have started a block if he has at least one check of any task
+-- from this block (according to the Checks table)
+
+-- Procedure parameters: name of block 1, for example SQL, name of block 2, for example A.
+-- Output format: percentage of those who started only the first block, percentage of those
+-- who started only the second block, percentage of those who started both blocks, percentage
+-- of those who did not started any of them
+
+CREATE OR REPLACE PROCEDURE prc_peers_percentage(IN p_block1 VARCHAR,
+                                                 IN p_plock2 VARCHAR,
+                                                 INOUT StartedBlock1 NUMERIC = 0
+                                                 INOUT StartedBlock2 NUMERIC = 0) AS $$
+BEGIN
+    WITH t1 AS (SELECT peer FROM checks
+                WHERE task SIMILAR TO p_block1 || '[0-9]%'
+                GROUP BY 1)
+    SELECT ROUND(count(t1.peer)::NUMERIC / (SELECT COUNT(nickname) FROM peers)::NUMERIC * 100, 2)
+    FROM t1
+    INTO StartedBlock1;
+END;
+$$ LANGUAGE PLPGSQL;
+
+CALL prc_peers_percentage('C');
+
+SELECT COUNT(nickname) FROM peers;
+
+WITH t1 AS (SELECT peer
+FROM checks
+WHERE task SIMILAR TO 'C[0-9]%'
+GROUP BY 1)
+SELECT ROUND(count(t1.peer)::NUMERIC / (SELECT COUNT(nickname) FROM peers)::NUMERIC * 100, 2) FROM t1;
 
