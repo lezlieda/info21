@@ -56,50 +56,54 @@ SELECT * FROM time_tracking;
 SELECT * FROM fnc_peers_not_left('2024-01-17');
 
 -- 4) Calculate the change in the number of peer points of each peer using the TransferredPoints table
-
-WITH t1 AS (SELECT checking_peer, SUM(points_amount) AS received
-            FROM transferred_points
-            GROUP BY 1),
-      t2 AS (SELECT checked_peer, SUM(points_amount) AS spent
-            FROM transferred_points
-            GROUP BY 1),
-      t3 AS (SELECT *
-            FROM t1
-            LEFT JOIN t2 ON t1.checking_peer = t2.checked_peer)
-SELECT checking_peer AS peer, received - COALESCE(spent, 0) AS points_change
-FROM t3;
-
-WITH t1 AS (SELECT checking_peer, SUM(points_amount) AS received
-            FROM transferred_points
-            GROUP BY 1),
-      t2 AS (SELECT checked_peer, SUM(points_amount) AS spent
-            FROM transferred_points
-            GROUP BY 1),
-      t3 AS (SELECT * FROM t1
-            LEFT JOIN t2 ON t1.checking_peer = t2.checked_peer
-            WHERE t1.received != COALESCE(t2.spent,0))
-SELECT checking_peer AS peer, received - COALESCE(spent, 0) AS points_change
-FROM t3;
-
-CREATE OR REPLACE PROCEDURE prc_peerpoints(INOUT peer VARCHAR DEFAULT '', 
-                                           INOUT points_change INTEGER DEFAULT 0) AS $$
+CREATE OR REPLACE PROCEDURE prc_peerpoints(INOUT curs1 refcursor) AS $$
 BEGIN
-    SELECT checking_peer, points_amount FROM transferred_points
-    INTO peer, points_change;
+    OPEN curs1 FOR
+        WITH t1 AS (SELECT checking_peer, SUM(points_amount) AS received
+                    FROM transferred_points
+                    GROUP BY 1),
+             t2 AS (SELECT checked_peer, SUM(points_amount) AS spent
+                    FROM transferred_points
+                    GROUP BY 1),
+             t3 AS (SELECT p.nickname AS peer, 0 + COALESCE(t1.received, 0) - COALESCE(t2.spent, 0) AS points
+                    FROM peers p
+                    LEFT JOIN t1 ON p.nickname = t1.checking_peer
+                    LEFT JOIN t2 ON p.nickname = t2.checked_peer)
+        SELECT * FROM t3
+        WHERE points != 0
+        ORDER BY 2 DESC;
 END;
 $$ LANGUAGE PLPGSQL;
 
-CALL prc_peerpoints();
-
 SELECT * FROM transferred_points;
+BEGIN;
+CALL prc_peerpoints('out');
+FETCH ALL FROM out;
+END;
 
+-- 5) Calculate the change in the number of peer points of each peer using the table returned
+--    by the first function from Part 3
 
+CREATE OR REPLACE PROCEDURE prc_peerpoints_alt(INOUT curs2 refcursor) AS $$
+BEGIN
+    OPEN curs2 FOR
+        WITH t1 AS (SELECT peer1, SUM(-point_amount) AS s1
+               FROM fnc_readable_transfer_points()
+               GROUP BY 1),
+        t2 AS (SELECT peer2, SUM(point_amount) AS s2
+               FROM fnc_readable_transfer_points()
+               GROUP BY 1),
+        t3 AS (SELECT p.nickname AS peer, 0 + COALESCE(t1.s1, 0) + COALESCE(t2.s2,0) AS points
+               FROM peers p
+               LEFT JOIN t1 ON p.nickname = t1.peer1
+               LEFT JOIN t2 ON p.nickname = t2.peer2
+              ORDER BY 2 DESC)
+        SELECT * FROM t3 WHERE points != 0;
+END;
+$$ LANGUAGE PLPGSQL;
 
-SELECT checking_peer, SUM(points_amount)
-            FROM transferred_points
-            GROUP BY 1;
-
-SELECT checked_peer, SUM(-points_amount)
-            FROM transferred_points
-            GROUP BY 1;
+BEGIN;
+CALL prc_peerpoints_alt('bb');
+FETCH ALL FROM bb;
+END;
 
