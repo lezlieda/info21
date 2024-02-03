@@ -53,10 +53,6 @@ BEGIN
 END;
 $$ LANGUAGE PLPGSQL;
 
--- SELECT MAX(c.id) FROM checks c
--- INNER JOIN verter v ON c.id = v.check_id
--- WHERE c.peer = 'Bredual' AND c.task = 'C2_SimpleBashUtils' AND v.state = 'Start';
-
 -- 3) Write a trigger: after adding a record with the "start" status to the P2P table,
 --    change the corresponding record in the TransferredPoints table
 CREATE OR REPLACE FUNCTION fnc_transfer_exists(p_checking VARCHAR, p_checked VARCHAR) RETURNS BOOLEAN AS $$
@@ -108,11 +104,6 @@ BEGIN
 END;
 $$ LANGUAGE PLPGSQL;
 
--- SELECT fnc_is_check_successful(10);
--- SELECT max_xp FROM checks c 
--- JOIN tasks t ON t.title = c.task
--- WHERE c.id = 10;
-
 CREATE OR REPLACE FUNCTION fnc_check_xp_insert() RETURNS trigger AS $trg_check_xp_insert$
 BEGIN
     IF NEW.xp_amount BETWEEN 0 AND (SELECT max_xp FROM checks c JOIN tasks t ON t.title = c.task WHERE c.id = NEW.check_id)
@@ -160,25 +151,5 @@ SELECT * FROM checks;
 SELECT * FROM p2p;
 SELECT * FROM verter;
 SELECT * FROM xp;
-
-
-
-
-
-
-CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Start', '12:41:11');
-CALL add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Success', '12:42:11');
-
-
-CALL add_verter_check('Bredual', 'C3_s21_string+', 'Start', '14:14:41');
-CALL add_verter_check('Bredual', 'C3_s21_string+', 'Success', '14:14:41');
-INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), 9, 300);
-
-
-SELECT * FROM checks;
-SELECT * FROM p2p;
-SELECT * FROM verter;
-
-SELECT * FROM xp;
-
 SELECT * FROM transferred_points;
+
