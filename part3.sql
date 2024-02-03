@@ -193,26 +193,29 @@ END;
 -- of those who did not started any of them
 
 CREATE OR REPLACE PROCEDURE prc_peers_percentage(IN p_block1 VARCHAR,
-                                                 IN p_plock2 VARCHAR,
-                                                 INOUT StartedBlock1 NUMERIC = 0
-                                                 INOUT StartedBlock2 NUMERIC = 0) AS $$
+                                                 IN p_block2 VARCHAR,
+                                                 INOUT Started_Block1 NUMERIC = 0,
+                                                 INOUT Started_Block2 NUMERIC = 0,
+                                                 INOUT Started_Both NUMERIC = 0,
+                                                 INOUT Didnt_start_any NUMERIC = 0) AS $$
 BEGIN
     WITH t1 AS (SELECT peer FROM checks
-                WHERE task SIMILAR TO p_block1 || '[0-9]%'
-                GROUP BY 1)
-    SELECT ROUND(count(t1.peer)::NUMERIC / (SELECT COUNT(nickname) FROM peers)::NUMERIC * 100, 2)
-    FROM t1
-    INTO StartedBlock1;
+                    WHERE task SIMILAR TO p_block1 || '[0-9]%'
+                    GROUP BY 1),
+         t2 AS (SELECT peer FROM checks
+                WHERE task SIMILAR TO p_block2 || '[0-9]%'
+                GROUP BY 1),
+         t3 AS (SELECT * FROM t1 INTERSECT SELECT * FROM t2),
+         t4 AS (SELECT ROUND(COUNT(t1.peer)::NUMERIC / (SELECT COUNT(nickname) FROM peers)::NUMERIC * 100, 2) AS s1 FROM t1),
+         t5 AS (SELECT ROUND(COUNT(t2.peer)::NUMERIC / (SELECT COUNT(nickname) FROM peers)::NUMERIC * 100, 2) AS s2 FROM t2),
+         t6 AS (SELECT ROUND(COUNT(t3.peer)::NUMERIC / (SELECT COUNT(nickname) FROM peers)::NUMERIC * 100, 2) AS sb FROM t3)
+    SELECT s1, s2, sb, 100 - s1 - s2 - sb
+    FROM t4
+    CROSS JOIN t5
+    CROSS JOIN t6
+    INTO Started_Block1, Started_Block2, Started_Both, Didnt_start_any;
+
 END;
 $$ LANGUAGE PLPGSQL;
 
-CALL prc_peers_percentage('C');
-
-SELECT COUNT(nickname) FROM peers;
-
-WITH t1 AS (SELECT peer
-FROM checks
-WHERE task SIMILAR TO 'C[0-9]%'
-GROUP BY 1)
-SELECT ROUND(count(t1.peer)::NUMERIC / (SELECT COUNT(nickname) FROM peers)::NUMERIC * 100, 2) FROM t1;
-
+CALL prc_peers_percentage('CPP', 'C');
