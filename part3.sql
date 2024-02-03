@@ -70,9 +70,9 @@ SELECT * FROM fnc_peers_not_left('2024-01-17');
 SELECT * FROM fnc_peers_not_left_alt('2024-01-17');
 
 -- 4) Calculate the change in the number of peer points of each peer using the TransferredPoints table
-CREATE OR REPLACE PROCEDURE prc_peerpoints(INOUT curs1 refcursor) AS $$
+CREATE OR REPLACE PROCEDURE prc_peerpoints(INOUT curs refcursor) AS $$
 BEGIN
-    OPEN curs1 FOR
+    OPEN curs FOR
         WITH t1 AS (SELECT checking_peer, SUM(points_amount) AS received
                     FROM transferred_points
                     GROUP BY 1),
@@ -91,16 +91,16 @@ $$ LANGUAGE PLPGSQL;
 
 SELECT * FROM transferred_points;
 BEGIN;
-CALL prc_peerpoints('out');
-FETCH ALL FROM out;
+CALL prc_peerpoints('task_4');
+FETCH ALL FROM task_4;
 END;
 
 -- 5) Calculate the change in the number of peer points of each peer using the table returned
 --    by the first function from Part 3
 
-CREATE OR REPLACE PROCEDURE prc_peerpoints_alt(INOUT curs2 refcursor) AS $$
+CREATE OR REPLACE PROCEDURE prc_peerpoints_alt(INOUT curs refcursor) AS $$
 BEGIN
-    OPEN curs2 FOR
+    OPEN curs FOR
         WITH t1 AS (SELECT peer1, SUM(-point_amount) AS s1
                FROM fnc_readable_transfer_points()
                GROUP BY 1),
@@ -117,22 +117,30 @@ END;
 $$ LANGUAGE PLPGSQL;
 
 BEGIN;
-CALL prc_peerpoints_alt('bb');
-FETCH ALL FROM bb;
+CALL prc_peerpoints_alt('task_5');
+FETCH ALL FROM task_5;
 END;
 
 -- 6) Find the most frequently checked task for each day
-SELECT * FROM checks;
+CREATE OR REPLACE PROCEDURE prc_frequent_tasks(INOUT curs refcursor) AS $$
+BEGIN
+    OPEN curs FOR
+        WITH t1 AS (SELECT date AS d, task AS t, COUNT(task) AS cnt
+                    FROM checks
+                    GROUP BY 1, 2
+                    ORDER BY 1),
+              t2 AS (SELECT d, MAX(cnt)
+                     FROM t1
+                     GROUP BY 1)
+        SELECT t1.d AS date, t1.t AS task
+        FROM t1
+        JOIN t2
+        ON t1.d = t2.d AND t1.cnt = t2.max;
+END;
+$$ LANGUAGE PLPGSQL;
 
-SELECT date AS day, task, COUNT(task) AS cnt
-FROM checks
-GROUP BY 1, 2
-ORDER BY 1;
+BEGIN;
+CALL prc_frequent_tasks('task_6');
+FETCH ALL FROM task_6;
+END;
 
-WITH t1 AS (SELECT date AS day, task, COUNT(task) AS cnt
-            FROM checks
-            GROUP BY 1, 2
-            ORDER BY 1)
-SELECT day, task
-FROM t1
-GROUP BY 1
