@@ -241,16 +241,30 @@ $$ LANGUAGE PLPGSQL;
 
 CALL prc_birthday_percentage();
 
-
-WITH t1 AS (SELECT nickname, EXTRACT(MONTH FROM birthday) AS m, EXTRACT(DAY FROM birthday) AS d FROM peers),
-     t2 AS (SELECT id, peer, EXTRACT(MONTH FROM date) AS m, EXTRACT(DAY FROM date) AS d FROM checks),
-     t3 AS (SELECT fnc_is_check_successful(t2.id) AS s
-            FROM t1 JOIN t2
-            ON t1.m = t2.m AND t1.d = t2.d AND t1.nickname = t2.peer),
-     s AS  (SELECT ROUND((SELECT COUNT(t3.s) FROM t3 WHERE t3.s = true)::NUMERIC
-                           / (SELECT COUNT(t3.s) FROM t3)::NUMERIC * 100, 2) AS c)
-SELECT s.c, 100 - s.c AS u from s;
-
 -- 11) Determine all peers who did the given tasks 1 and 2, but did not do task 3
 
--- ????????????????????????
+-- ????????????????????????????????????????????
+
+-- 12) Using recursive common table expression, output the number of preceding tasks for each task
+
+CREATE OR REPLACE PROCEDURE prc_num_preceding_tasks(INOUT curs REFCURSOR = 'ex_12') AS $$
+BEGIN
+
+END;
+$$ LANGUAGE PLPGSQL;
+
+SELECT * FROM tasks;
+
+WITH RECURSIVE cte(task, prev_count) AS (
+                SELECT title, 0
+                FROM tasks
+                WHERE parent_task IS NULL
+                UNION
+                SELECT task, prev_count + 1
+                FROM cte
+                JOIN tasks
+                ON tasks.title
+                )
+SELECT * FROM cte;
+
+SELECT title, 0 AS cnt FROM tasks WHERE parent_task IS NULL;

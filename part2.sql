@@ -124,7 +124,7 @@ CALL prc_add_p2p_check('Pormissina', 'Troducity', 'C2_SimpleBashUtils', 'Start',
 CALL prc_add_p2p_check('Pormissina', 'Troducity', 'C2_SimpleBashUtils', 'Success', '12:41:12');
 CALL prc_add_verter_check('Pormissina', 'C2_SimpleBashUtils', 'Start', '12:41:15');
 CALL prc_add_verter_check('Pormissina', 'C2_SimpleBashUtils', 'Success', '12:42:15');
-INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 350);
+INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 265);
 -- 2 check
 CALL prc_add_p2p_check('Bredual', 'Anchil', 'C2_SimpleBashUtils', 'Start', '12:19:11');
 CALL prc_add_p2p_check('Bredual', 'Anchil', 'C2_SimpleBashUtils', 'Success', '12:41:08');
@@ -142,7 +142,7 @@ CALL prc_add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Start', '22:29:37');
 CALL prc_add_verter_check('Bredual', 'C2_SimpleBashUtils', 'Success', '22:30:37');
 INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 1350); -- 1350 > 350
 INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), -350); -- -350 < 0
-INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 265);
+INSERT INTO xp VALUES((SELECT MAX(id) + 1 FROM xp), (SELECT MAX(id) FROM checks), 350);
 
 -- 5 check
 CALL prc_add_p2p_check('Bredual', 'Anchil', 'C3_s21_string+', 'Start', '22:45:00');
