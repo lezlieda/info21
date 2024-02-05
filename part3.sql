@@ -342,7 +342,7 @@ END;
 $$ LANGUAGE PLPGSQL;
 
 BEGIN;
-CALL prc_early_birds('13:20:00', 2);
+CALL prc_early_birds('13:20:00', 1);
 FETCH ALL FROM ex_15;
 END;
 
@@ -366,18 +366,79 @@ END;
 $$ LANGUAGE PLPGSQL;
 
 BEGIN;
-CALL prc_peers_smokers(19, 1);
+CALL prc_peers_smokers(22, 1);
 FETCH ALL FROM ex_16;
 END;
 
-SELECT * FROM time_tracking WHERE date > current_date - INTERVAL '18 days';
+-- 17) Determine for each month the percentage of early entries
+CREATE OR REPLACE PROCEDURE prc_determine_early_entries(INOUT curs REFCURSOR = 'ex_17') AS $$
+BEGIN
+    OPEN curs FOR
+        WITH t1 AS (SELECT to_char(date, 'Month') AS m, peer, date, time, row_number() OVER (PARTITION BY peer, date) AS enters
+                    FROM time_tracking
+                    WHERE state = 1),
+            t2 AS (SELECT nickname, to_char(birthday, 'Month') AS mm FROM peers),
+            t3 AS (SELECT * FROM t1
+                    JOIN t2
+                    ON t1.peer = t2.nickname AND t1.m = t2.mm
+                    WHERE t1.enters = 1),
+            t4 AS (SELECT t3.m AS Month, COUNT(t3.m) AS total_entries
+                    FROM t3
+                    GROUP BY 1),
+            t5 AS (SELECT t3.m, COUNT(t3.m) AS early_entries
+                    FROM t3
+                    WHERE time < '12:00:00'
+                    GROUP BY 1)
+        SELECT t4.Month, ROUND(t5.early_entries::NUMERIC / t4.total_entries::NUMERIC * 100, 2) AS early_entries
+        FROM t4
+        JOIN t5
+        ON t4.Month = t5.m;
+END;
+$$ LANGUAGE PLPGSQL;
 
-WITH t1 AS (SELECT *, row_number() OVER (PARTITION BY date, peer) AS exits_count
-            FROM time_tracking WHERE state = 2),
-     t2 AS (SELECT peer, date, MAX(exits_count) - 1 AS lefts
-            FROM t1
-            GROUP BY 1, 2),
-     t3 AS (SELECT * FROM t2 WHERE lefts > 0)
-SELECT *
+BEGIN;
+CALL prc_determine_early_entries();
+FETCH ALL FROM ex_17;
+END;
+
+SELECT to_char(date, 'Month') AS m, peer, date, time, row_number() OVER (PARTITION BY peer, date)
+FROM time_tracking
+WHERE state = 1;
+
+SELECT nickname, to_char(birthday, 'Month') FROM peers;
+
+WITH t1 AS (SELECT to_char(date, 'Month') AS m, peer, date, time, row_number() OVER (PARTITION BY peer, date) AS enters
+            FROM time_tracking
+            WHERE state = 1),
+     t2 AS (SELECT nickname, to_char(birthday, 'Month') AS mm FROM peers),
+     t3 AS (SELECT * FROM t1
+            JOIN t2
+            ON t1.peer = t2.nickname AND t1.m = t2.mm
+            WHERE t1.enters = 1)
+SELECT t3.m, COUNT(t3.m) AS early_entries
 FROM t3
-WHERE date > current_date - INTERVAL '19 days';
+WHERE time < '12:00:00'
+GROUP BY 1;
+
+WITH t1 AS (SELECT to_char(date, 'Month') AS m, peer, date, time, row_number() OVER (PARTITION BY peer, date) AS enters
+            FROM time_tracking
+            WHERE state = 1),
+     t2 AS (SELECT nickname, to_char(birthday, 'Month') AS mm FROM peers),
+     t3 AS (SELECT * FROM t1
+            JOIN t2
+            ON t1.peer = t2.nickname AND t1.m = t2.mm
+            WHERE t1.enters = 1),
+     t4 AS (SELECT t3.m AS Month, COUNT(t3.m) AS total_entries
+            FROM t3
+            GROUP BY 1),
+     t5 AS (SELECT t3.m, COUNT(t3.m) AS early_entries
+            FROM t3
+            WHERE time < '12:00:00'
+            GROUP BY 1)
+SELECT t4.Month, ROUND(t5.early_entries::NUMERIC / t4.total_entries::NUMERIC * 100, 2) AS early_entries
+FROM t4
+JOIN t5
+ON t4.Month = t5.m;
+
+SELECT * FROM time_tracking
+WHERE time > '12:00:00' AND state = 1;
