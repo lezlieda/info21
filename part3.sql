@@ -227,22 +227,30 @@ CALL prc_peers_percentage('CPP', 'DO');
 CREATE OR REPLACE PROCEDURE prc_birthday_percentage(INOUT Successful_Checks NUMERIC = 0, 
                                                     INOUT Unsuccessful_Checks NUMERIC = 0) AS $$
 BEGIN
-
+    WITH t1 AS (SELECT nickname, EXTRACT(MONTH FROM birthday) AS m, EXTRACT(DAY FROM birthday) AS d FROM peers),
+     t2 AS (SELECT id, peer, EXTRACT(MONTH FROM date) AS m, EXTRACT(DAY FROM date) AS d FROM checks),
+     t3 AS (SELECT fnc_is_check_successful(t2.id) AS s
+            FROM t1 JOIN t2
+            ON t1.m = t2.m AND t1.d = t2.d AND t1.nickname = t2.peer),
+     s AS  (SELECT ROUND((SELECT COUNT(t3.s) FROM t3 WHERE t3.s = true)::NUMERIC
+                           / (SELECT COUNT(t3.s) FROM t3)::NUMERIC * 100, 2) AS c)
+    SELECT s.c, 100 - s.c AS u from s
+    INTO Successful_Checks, Unsuccessful_Checks;
 END;
 $$ LANGUAGE PLPGSQL;
 
-select * from checks;
-UPDATE peers SET birthday = '2002-01-17' WHERE nickname = 'Prowels';
-UPDATE peers SET birthday = '1988-02-01' WHERE nickname = 'Bredual';
+CALL prc_birthday_percentage();
 
-SELECT nickname, EXTRACT(MONTH FROM birthday) AS m, EXTRACT(DAY FROM birthday) AS d FROM peers; 
-
-SELECT id, peer, EXTRACT(MONTH FROM date) AS m, EXTRACT(DAY FROM date) AS d FROM checks;
 
 WITH t1 AS (SELECT nickname, EXTRACT(MONTH FROM birthday) AS m, EXTRACT(DAY FROM birthday) AS d FROM peers),
-     t2 AS (SELECT id, peer, EXTRACT(MONTH FROM date) AS m, EXTRACT(DAY FROM date) AS d FROM checks)
-SELECT t2.id AS check_id, t1.nickname, fnc_is_check_successful(t2.id) AS success
-FROM t1
-JOIN t2
-ON t1.m = t2.m AND t1.d = t2.d AND t1.nickname = t2.peer;
+     t2 AS (SELECT id, peer, EXTRACT(MONTH FROM date) AS m, EXTRACT(DAY FROM date) AS d FROM checks),
+     t3 AS (SELECT fnc_is_check_successful(t2.id) AS s
+            FROM t1 JOIN t2
+            ON t1.m = t2.m AND t1.d = t2.d AND t1.nickname = t2.peer),
+     s AS  (SELECT ROUND((SELECT COUNT(t3.s) FROM t3 WHERE t3.s = true)::NUMERIC
+                           / (SELECT COUNT(t3.s) FROM t3)::NUMERIC * 100, 2) AS c)
+SELECT s.c, 100 - s.c AS u from s;
 
+-- 11) Determine all peers who did the given tasks 1 and 2, but did not do task 3
+
+-- ????????????????????????
