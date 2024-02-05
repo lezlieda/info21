@@ -249,22 +249,135 @@ CALL prc_birthday_percentage();
 
 CREATE OR REPLACE PROCEDURE prc_num_preceding_tasks(INOUT curs REFCURSOR = 'ex_12') AS $$
 BEGIN
-
-END;
-$$ LANGUAGE PLPGSQL;
-
-SELECT * FROM tasks;
-
-WITH RECURSIVE cte(task, prev_count) AS (
+    OPEN curs FOR
+        WITH RECURSIVE cte(task, prev_count) AS (
                 SELECT title, 0
                 FROM tasks
                 WHERE parent_task IS NULL
                 UNION
-                SELECT task, prev_count + 1
-                FROM cte
-                JOIN tasks
-                ON tasks.title
+                SELECT t.title, cte.prev_count + 1
+                FROM tasks t
+                JOIN cte
+                ON t.parent_task = cte.task
                 )
-SELECT * FROM cte;
+        SELECT * FROM cte;
+END;
+$$ LANGUAGE PLPGSQL;
 
-SELECT title, 0 AS cnt FROM tasks WHERE parent_task IS NULL;
+BEGIN;
+CALL prc_num_preceding_tasks();
+FETCH ALL FROM ex_12;
+END;
+
+-- 13) Find "lucky" days for checks. A day is considered "lucky" if it has at least N consecutive successful checks
+--     Parameters of the procedure: the N number of consecutive successful checks .
+--     The time of the check is the start time of the P2P step.
+--     Successful consecutive checks are the checks with no unsuccessful checks in between.
+--     The amount of XP for each of these checks must be at least 80% of the maximum.
+--     Output format: list of days
+
+CREATE OR REPLACE PROCEDURE prc_lucky_days(IN p_num INTEGER, INOUT curs REFCURSOR = 'ex_13') AS $$
+BEGIN
+    OPEN curs FOR
+    WITH t1 AS (SELECT c.id, c.task, c.peer, c.date, xp_amount::NUMERIC / t.max_xp::NUMERIC >= 0.8 AS stat
+            FROM checks c
+            JOIN xp
+            ON c.id = xp.check_id
+            JOIN tasks t
+            ON c.task = t.title
+            ORDER BY 1 ASC),
+     t2 AS (SELECT t1.date, row_number() OVER (PARTITION BY t1.date, t1.stat) AS cc
+            FROM t1),
+     t3 AS (SELECT t2.date, MAX(t2.cc) AS max_series
+            FROM t2
+            GROUP BY 1)
+    SELECT t3.date
+    FROM t3
+    WHERE t3.max_series >= p_num;
+END;
+$$ LANGUAGE PLPGSQL;
+
+BEGIN;
+CALL prc_lucky_days(3);
+FETCH ALL FROM ex_13;
+END;
+
+-- 14) Find the peer with the highest amount of XP
+
+CREATE OR REPLACE PROCEDURE prc_most_expirienced(INOUT peer VARCHAR = '', INOUT xp INTEGER = 0) AS $$
+BEGIN
+    WITH t1 AS (SELECT c.peer AS p, c.task, MAX(xp.xp_amount) AS max_xp
+            FROM xp
+            JOIN checks c
+            ON c.id = xp.check_id
+            GROUP BY 1, 2)
+    SELECT p, SUM(max_xp)
+    FROM t1
+    GROUP BY 1
+    ORDER BY 2 DESC
+    LIMIT 1
+    INTO peer, xp;
+END;
+$$ LANGUAGE PLPGSQL;
+
+CALL prc_most_expirienced();
+
+-- 15) Determine the peers that came before the given time at least N times during the whole time
+--     Procedure parameters: time, N number of times .
+--     Output format: list of peers
+
+CREATE OR REPLACE PROCEDURE prc_early_birds(IN p_time TIME, IN p_num INTEGER, INOUT curs REFCURSOR = 'ex_15') AS $$
+BEGIN
+    OPEN curs FOR
+    WITH t1 AS (SELECT peer, date, time, row_number() OVER (PARTITION BY peer, date) AS first
+            FROM time_tracking
+            WHERE state = 1 AND time <= p_time),
+         t2 AS (SELECT peer, COUNT(peer) AS cnt
+                FROM t1 WHERE first = 1
+                GROUP BY 1)
+    SELECT peer
+    FROM t2
+    WHERE cnt >= p_num;
+END;
+$$ LANGUAGE PLPGSQL;
+
+BEGIN;
+CALL prc_early_birds('13:20:00', 2);
+FETCH ALL FROM ex_15;
+END;
+
+-- 16) Determine the peers who left the campus more than M times during the last N days
+--     Procedure parameters: N number of days , M number of times .
+--     Output format: list of peers
+
+CREATE OR REPLACE PROCEDURE prc_peers_smokers(IN p_days INTEGER, IN p_times INTEGER, INOUT curs REFCURSOR = 'ex_16') AS $$
+BEGIN
+    OPEN curs FOR
+    EXECUTE (SELECT FORMAT('
+    WITH t1 AS (SELECT *, row_number() OVER (PARTITION BY date, peer) AS exits_count
+            FROM time_tracking WHERE state = 2),
+         t2 AS (SELECT peer, date, MAX(exits_count) - 1 AS lefts
+                FROM t1
+                GROUP BY 1, 2),
+         t3 AS (SELECT * FROM t2 WHERE lefts > %s)
+    SELECT peer FROM t3 WHERE date > current_date - INTERVAL ''%s'' DAY
+    GROUP BY 1', p_times, p_days));
+END;
+$$ LANGUAGE PLPGSQL;
+
+BEGIN;
+CALL prc_peers_smokers(19, 1);
+FETCH ALL FROM ex_16;
+END;
+
+SELECT * FROM time_tracking WHERE date > current_date - INTERVAL '18 days';
+
+WITH t1 AS (SELECT *, row_number() OVER (PARTITION BY date, peer) AS exits_count
+            FROM time_tracking WHERE state = 2),
+     t2 AS (SELECT peer, date, MAX(exits_count) - 1 AS lefts
+            FROM t1
+            GROUP BY 1, 2),
+     t3 AS (SELECT * FROM t2 WHERE lefts > 0)
+SELECT *
+FROM t3
+WHERE date > current_date - INTERVAL '19 days';
