@@ -70,7 +70,7 @@ SELECT * FROM fnc_peers_not_left('2024-01-17');
 SELECT * FROM fnc_peers_not_left_alt('2024-01-17');
 
 -- 4) Calculate the change in the number of peer points of each peer using the TransferredPoints table
-CREATE OR REPLACE PROCEDURE prc_peerpoints(INOUT curs refcursor) AS $$
+CREATE OR REPLACE PROCEDURE prc_peerpoints(INOUT curs refcursor = 'ex_4') AS $$
 BEGIN
     OPEN curs FOR
         WITH t1 AS (SELECT checking_peer, SUM(points_amount) AS received
@@ -91,7 +91,7 @@ $$ LANGUAGE PLPGSQL;
 
 SELECT * FROM transferred_points;
 BEGIN;
-CALL prc_peerpoints('ex_4');
+CALL prc_peerpoints();
 FETCH ALL FROM ex_4;
 END;
 
@@ -139,6 +139,8 @@ BEGIN
 END;
 $$ LANGUAGE PLPGSQL;
 
+UPDATE checks SET date = '2024-02-01' WHERE id BETWEEN 7 AND 9;
+SELECT * FROM checks;
 BEGIN;
 CALL prc_frequent_tasks();
 FETCH ALL FROM ex_6;
@@ -218,4 +220,29 @@ BEGIN
 END;
 $$ LANGUAGE PLPGSQL;
 
-CALL prc_peers_percentage('CPP', 'C');
+CALL prc_peers_percentage('CPP', 'DO');
+
+-- 10) Determine the percentage of peers who have ever successfully passed a check on their birthday
+
+CREATE OR REPLACE PROCEDURE prc_birthday_percentage(INOUT Successful_Checks NUMERIC = 0, 
+                                                    INOUT Unsuccessful_Checks NUMERIC = 0) AS $$
+BEGIN
+
+END;
+$$ LANGUAGE PLPGSQL;
+
+select * from checks;
+UPDATE peers SET birthday = '2002-01-17' WHERE nickname = 'Prowels';
+UPDATE peers SET birthday = '1988-02-01' WHERE nickname = 'Bredual';
+
+SELECT nickname, EXTRACT(MONTH FROM birthday) AS m, EXTRACT(DAY FROM birthday) AS d FROM peers; 
+
+SELECT id, peer, EXTRACT(MONTH FROM date) AS m, EXTRACT(DAY FROM date) AS d FROM checks;
+
+WITH t1 AS (SELECT nickname, EXTRACT(MONTH FROM birthday) AS m, EXTRACT(DAY FROM birthday) AS d FROM peers),
+     t2 AS (SELECT id, peer, EXTRACT(MONTH FROM date) AS m, EXTRACT(DAY FROM date) AS d FROM checks)
+SELECT t2.id AS check_id, t1.nickname, fnc_is_check_successful(t2.id) AS success
+FROM t1
+JOIN t2
+ON t1.m = t2.m AND t1.d = t2.d AND t1.nickname = t2.peer;
+
