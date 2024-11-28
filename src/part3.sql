@@ -8,7 +8,7 @@ BEGIN
     RETURN QUERY
     WITH t1 AS (SELECT CASE WHEN checking_peer > checked_peer THEN checking_peer ELSE checked_peer END,
                        CASE WHEN checking_peer > checked_peer THEN checked_peer ELSE checking_peer END,
-                       CASE WHEN checking_peer > checked_peer THEN tp.points_amount ELSE -tp.points_amount END AS p_a
+                       CASE WHEN checking_peer > checked_peer THEN -tp.points_amount ELSE tp.points_amount END AS p_a
                 FROM transferred_points tp)
     SELECT checking_peer, checked_peer, SUM(p_a)
     FROM t1
@@ -17,7 +17,7 @@ BEGIN
 END;
 $$ LANGUAGE PLPGSQL;
 SELECT * FROM fnc_readable_transfer_points();
-SELECT * FROM transferred_points;
+SELECT * FROM transferred_points WHERE checked_peer = 'aaeuppmlip';
 
 -- 2) Write a function that returns a table of the following form: user name,
 --    name of the checked task, number of XP received
@@ -29,7 +29,7 @@ BEGIN
     SELECT c.peer, c.task, xp.xp_amount
     FROM xp
     JOIN checks c
-    ON c.id = xp.check_id
+    ON c.id = xp.check
     ORDER BY 1, 2;
 END;
 $$ LANGUAGE PLPGSQL;
@@ -42,32 +42,18 @@ CREATE OR REPLACE FUNCTION fnc_peers_not_left(p_date DATE)
 RETURNS table(peer VARCHAR) AS $$
 BEGIN
     RETURN QUERY
-    SELECT nickname FROM peers
-    EXCEPT
-    SELECT tp.peer
-    FROM time_tracking tp
-    WHERE date = p_date AND state = 2
-    ORDER BY 1;
-END;
-$$ LANGUAGE PLPGSQL;
-
-CREATE OR REPLACE FUNCTION fnc_peers_not_left_alt(p_date DATE)
-RETURNS table(peer VARCHAR) AS $$
-BEGIN
-    RETURN QUERY
     WITH t1 AS (SELECT tp.peer, COUNT(tp.peer) AS enters FROM time_tracking tp
-                WHERE date = '2024-01-17' AND state = 1
+                WHERE date = p_date AND state = 1
                 GROUP BY 1)
     SELECT t1.peer FROM t1 WHERE enters = 1;
 END;
 $$ LANGUAGE PLPGSQL;
 
 
-SELECT * FROM time_tracking;
+SELECT date, COUNT(date) FROM time_tracking GROUP BY 1 ORDER BY 2 DESC;
+SELECT * FROM time_tracking WHERE date = '2022-01-01' ;
 
-SELECT * FROM fnc_peers_not_left('2024-01-17');
-
-SELECT * FROM fnc_peers_not_left_alt('2024-01-17');
+SELECT * FROM fnc_peers_not_left('2022-01-01');
 
 -- 4) Calculate the change in the number of peer points of each peer using the TransferredPoints table
 CREATE OR REPLACE PROCEDURE prc_peerpoints(INOUT curs refcursor = 'ex_4') AS $$
@@ -89,7 +75,7 @@ BEGIN
 END;
 $$ LANGUAGE PLPGSQL;
 
-SELECT * FROM transferred_points;
+SELECT checking_peer, SUM(points_amount) FROM transferred_points WHERE checking_peer = 'byklmdzrsa' GROUP BY 1;
 BEGIN;
 CALL prc_peerpoints();
 FETCH ALL FROM ex_4;
@@ -139,7 +125,7 @@ BEGIN
 END;
 $$ LANGUAGE PLPGSQL;
 
-UPDATE checks SET date = '2024-02-01' WHERE id BETWEEN 7 AND 9;
+
 SELECT * FROM checks;
 BEGIN;
 CALL prc_frequent_tasks();
@@ -153,33 +139,90 @@ END;
 CREATE OR REPLACE PROCEDURE prc_peers_completed_block(IN p_block VARCHAR, INOUT curs REFCURSOR = 'ex_7') AS $$
 BEGIN
     OPEN curs FOR
-    WITH t1 AS (SELECT title
-            FROM tasks
-            WHERE title SIMILAR TO p_block || '[0-9]%'
-            ORDER BY 1 DESC
-            LIMIT 1),
-     t2 AS (SELECT c.peer, c.task, c.date FROM checks c
-            JOIN xp
-            ON c.id = xp.check_id)
-    SELECT t2.peer, MIN(t2.date) AS day
-    FROM t2
-    JOIN t1
-    ON t2.task = t1.title
-    GROUP BY t2.peer
-    ORDER BY 2 DESC;
+    WITH RECURSIVE  t1 AS (SELECT title, ROW_NUMBER() OVER(ORDER BY title) AS num -- all tasks from the block
+                            FROM tasks
+                            WHERE title SIMILAR TO p_block || '[0-9]%'
+                            ORDER BY 1),
+                    t2 AS (SELECT c.peer, c.task, c.date FROM checks c -- all finished tasks
+                            JOIN xp
+                            ON c.id = xp.check),
+                    t3 AS (SELECT *                                    -- all peers with finished tasks in selected block
+                            FROM t2
+                            WHERE task IN (SELECT title FROM t1)
+                            GROUP BY 1, 2, 3),
+                    t4(peer, date, task) AS (
+                            SELECT t3.peer, MIN(t3.date) AS day, 1 AS task
+                            FROM t3
+                            JOIN t1
+                            ON t3.task = t1.title
+                            WHERE t1.num = 1
+                            GROUP BY 1
+                            UNION
+                            SELECT t3.peer, t3.date AS day, t4.task + 1 AS task
+                            FROM t3
+                            JOIN t1
+                            ON t3.task = t1.title
+                            JOIN t4
+                            ON t3.peer = t4.peer
+                            WHERE t1.num = t4.task + 1
+                            GROUP BY 1, 2, 3)
+                SELECT peer, MIN(date) AS day
+                FROM t4
+                WHERE task = (SELECT COUNT(title) FROM t1)
+                GROUP BY 1;
 END;
 $$ LANGUAGE PLPGSQL;
 
 BEGIN;
-CALL prc_peers_completed_block('C');
+CALL prc_peers_completed_block('SQL');
 FETCH ALL FROM ex_7;
 END;
 
+SELECT * FROM checks WHERE peer = 'qgljzebhhh' AND task SIMILAR TO 'SQL%';
+
 
 -- 8) Determine which peer each student should go to for a check.
+-- insert some data for representantion
+CREATE OR REPLACE PROCEDURE prc_check_assignment(INOUT curs REFCURSOR = 'ex_8') AS $$
+BEGIN
+    OPEN curs FOR
+        WITH t1 AS (SELECT f1.peer1, f1.peer2 -- all friends
+                    FROM friends f1
+                    UNION
+                    SELECT f2.peer2, f2.peer1
+                    FROM friends f2
+                    ORDER BY 1, 2),
+            t2 AS (SELECT peers.nickname, peer2 AS friends -- all peers and their friends
+                    FROM t1
+                    RIGHT JOIN peers
+                    ON t1.peer1 = peers.nickname
+                    ORDER BY 1, 2),
+            t3 AS (SELECT r.peer, r.recommended_peer, COUNT(r.recommended_peer) AS cn -- all recommendations
+                    FROM recommendations r
+                    GROUP BY 1, 2),
+            t4 AS (SELECT DISTINCT t2.nickname, t3.recommended_peer, t3.count -- all peers and their friends and recommendations
+                    FROM t2
+                    RIGHT JOIN t3
+                    ON t2.friends = t3.peer
+                    WHERE nickname IS NOT NULL
+                    GROUP BY 1, 2
+                    ORDER BY 3 DESC),
+            t5 AS (SELECT t4.nickname, max(t4.count) AS max_count -- max count of recommendations for each peer
+                    FROM t4
+                    GROUP BY 1)
+        SELECT p.nickname, COALESCE(t4.recommended_peer, 'No recommendations') AS recommended_peer
+        FROM peers p
+        LEFT JOIN t4
+        ON p.nickname = t4.nickname
+        LEFT JOIN t5
+        ON p.nickname = t5.nickname AND t4.count = t5.max_count;
+END;
+$$ LANGUAGE PLPGSQL;
 
--- ????????????????????????????????????????????????????????????????????????????????????
-
+BEGIN;
+CALL prc_check_assignment();
+FETCH ALL FROM ex_8;
+END;
 
 -- 9) Determine the percentage of peers who:
 --    - Started only block 1
@@ -220,7 +263,7 @@ BEGIN
 END;
 $$ LANGUAGE PLPGSQL;
 
-CALL prc_peers_percentage('CPP', 'DO');
+CALL prc_peers_percentage('SQL', 'AP');
 
 -- 10) Determine the percentage of peers who have ever successfully passed a check on their birthday
 
@@ -242,8 +285,35 @@ $$ LANGUAGE PLPGSQL;
 CALL prc_birthday_percentage();
 
 -- 11) Determine all peers who did the given tasks 1 and 2, but did not do task 3
+CREATE OR REPLACE PROCEDURE prc_peers_did_2_not_3(IN p_task1 VARCHAR, IN p_task2 VARCHAR, IN p_task3 VARCHAR, 
+                                              INOUT curs REFCURSOR = 'ex_11') AS $$
+BEGIN
+    OPEN curs FOR
+        WITH t1 AS (SELECT c.peer, c.task          -- peers and done tasks
+                    FROM xp
+                    JOIN checks c
+                    ON c.id = xp.check
+                    ORDER BY 1, 2),
+            t2 AS (SELECT DISTINCT peer            -- peers who did the given tasks 1 and 2
+                    FROM t1
+                    WHERE task = p_task1
+                    INTERSECT
+                    SELECT DISTINCT peer
+                    FROM t1
+                    WHERE task = p_task2)
+        SELECT * 
+        FROM t2
+        INTERSECT
+        SELECT p.nickname AS peer
+        FROM peers p
+        WHERE p.nickname NOT IN (SELECT peer FROM t1 WHERE task = p_task3);
+END;
+$$ LANGUAGE PLPGSQL;
 
--- ????????????????????????????????????????????
+BEGIN;
+CALL prc_peers_did_2_not_3('SQL1', 'SQL2', 'SQL3');
+FETCH ALL FROM ex_11;
+END;
 
 -- 12) Using recursive common table expression, output the number of preceding tasks for each task
 
@@ -282,7 +352,7 @@ BEGIN
     WITH t1 AS (SELECT c.id, c.task, c.peer, c.date, xp_amount::NUMERIC / t.max_xp::NUMERIC >= 0.8 AS stat
             FROM checks c
             JOIN xp
-            ON c.id = xp.check_id
+            ON c.id = xp.check
             JOIN tasks t
             ON c.task = t.title
             ORDER BY 1 ASC),
@@ -298,7 +368,7 @@ END;
 $$ LANGUAGE PLPGSQL;
 
 BEGIN;
-CALL prc_lucky_days(3);
+CALL prc_lucky_days(5);
 FETCH ALL FROM ex_13;
 END;
 
@@ -309,7 +379,7 @@ BEGIN
     WITH t1 AS (SELECT c.peer AS p, c.task, MAX(xp.xp_amount) AS max_xp
             FROM xp
             JOIN checks c
-            ON c.id = xp.check_id
+            ON c.id = xp.check
             GROUP BY 1, 2)
     SELECT p, SUM(max_xp)
     FROM t1
@@ -329,11 +399,11 @@ CALL prc_most_expirienced();
 CREATE OR REPLACE PROCEDURE prc_early_birds(IN p_time TIME, IN p_num INTEGER, INOUT curs REFCURSOR = 'ex_15') AS $$
 BEGIN
     OPEN curs FOR
-    WITH t1 AS (SELECT peer, date, time, row_number() OVER (PARTITION BY peer, date) AS first
+    WITH t1 AS (SELECT peer, date, time
             FROM time_tracking
             WHERE state = 1 AND time <= p_time),
          t2 AS (SELECT peer, COUNT(peer) AS cnt
-                FROM t1 WHERE first = 1
+                FROM t1
                 GROUP BY 1)
     SELECT peer
     FROM t2
@@ -342,7 +412,7 @@ END;
 $$ LANGUAGE PLPGSQL;
 
 BEGIN;
-CALL prc_early_birds('13:20:00', 1);
+CALL prc_early_birds('09:00:00', 4);
 FETCH ALL FROM ex_15;
 END;
 
@@ -353,20 +423,19 @@ END;
 CREATE OR REPLACE PROCEDURE prc_peers_smokers(IN p_days INTEGER, IN p_times INTEGER, INOUT curs REFCURSOR = 'ex_16') AS $$
 BEGIN
     OPEN curs FOR
-    EXECUTE (SELECT FORMAT('
     WITH t1 AS (SELECT *, row_number() OVER (PARTITION BY date, peer) AS exits_count
             FROM time_tracking WHERE state = 2),
          t2 AS (SELECT peer, date, MAX(exits_count) - 1 AS lefts
                 FROM t1
                 GROUP BY 1, 2),
-         t3 AS (SELECT * FROM t2 WHERE lefts > %s)
-    SELECT peer FROM t3 WHERE date > current_date - INTERVAL ''%s'' DAY
-    GROUP BY 1', p_times, p_days));
+         t3 AS (SELECT * FROM t2 WHERE lefts > p_times)
+    SELECT peer FROM t3 WHERE date > current_date - p_days * INTERVAL '1' DAY
+    GROUP BY 1;
 END;
 $$ LANGUAGE PLPGSQL;
 
 BEGIN;
-CALL prc_peers_smokers(22, 1);
+CALL prc_peers_smokers(1500, 5);
 FETCH ALL FROM ex_16;
 END;
 
@@ -392,7 +461,8 @@ BEGIN
         SELECT t4.Month, ROUND(t5.early_entries::NUMERIC / t4.total_entries::NUMERIC * 100, 2) AS early_entries
         FROM t4
         JOIN t5
-        ON t4.Month = t5.m;
+        ON t4.Month = t5.m
+        ORDER BY to_date(t4.Month, 'Month')::DATE;
 END;
 $$ LANGUAGE PLPGSQL;
 
@@ -400,45 +470,3 @@ BEGIN;
 CALL prc_determine_early_entries();
 FETCH ALL FROM ex_17;
 END;
-
-SELECT to_char(date, 'Month') AS m, peer, date, time, row_number() OVER (PARTITION BY peer, date)
-FROM time_tracking
-WHERE state = 1;
-
-SELECT nickname, to_char(birthday, 'Month') FROM peers;
-
-WITH t1 AS (SELECT to_char(date, 'Month') AS m, peer, date, time, row_number() OVER (PARTITION BY peer, date) AS enters
-            FROM time_tracking
-            WHERE state = 1),
-     t2 AS (SELECT nickname, to_char(birthday, 'Month') AS mm FROM peers),
-     t3 AS (SELECT * FROM t1
-            JOIN t2
-            ON t1.peer = t2.nickname AND t1.m = t2.mm
-            WHERE t1.enters = 1)
-SELECT t3.m, COUNT(t3.m) AS early_entries
-FROM t3
-WHERE time < '12:00:00'
-GROUP BY 1;
-
-WITH t1 AS (SELECT to_char(date, 'Month') AS m, peer, date, time, row_number() OVER (PARTITION BY peer, date) AS enters
-            FROM time_tracking
-            WHERE state = 1),
-     t2 AS (SELECT nickname, to_char(birthday, 'Month') AS mm FROM peers),
-     t3 AS (SELECT * FROM t1
-            JOIN t2
-            ON t1.peer = t2.nickname AND t1.m = t2.mm
-            WHERE t1.enters = 1),
-     t4 AS (SELECT t3.m AS Month, COUNT(t3.m) AS total_entries
-            FROM t3
-            GROUP BY 1),
-     t5 AS (SELECT t3.m, COUNT(t3.m) AS early_entries
-            FROM t3
-            WHERE time < '12:00:00'
-            GROUP BY 1)
-SELECT t4.Month, ROUND(t5.early_entries::NUMERIC / t4.total_entries::NUMERIC * 100, 2) AS early_entries
-FROM t4
-JOIN t5
-ON t4.Month = t5.m;
-
-SELECT * FROM time_tracking
-WHERE time > '12:00:00' AND state = 1;
